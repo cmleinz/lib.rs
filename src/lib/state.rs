@@ -19,6 +19,15 @@ pub enum InputState {
     InsertMode,
 }
 
+impl InputState {
+    pub fn to_string(&self) -> String {
+        match self {
+            InputState::NormalMode => "= NORMAL MODE = (Select a paper)".into(),
+            InputState::InsertMode => "= INSERT MODE = (Search for results)".into(),
+        }
+    }
+}
+
 impl MenuItem {
     pub const TITLES: &'static [&'static str; 4] = &["Home", "Search", "Favorite", "Settings"];
 }
@@ -34,11 +43,17 @@ impl From<MenuItem> for usize {
     }
 }
 
+pub enum HomePanel {
+    SearchBar,
+    ListView,
+}
+
 pub struct TuiState {
     page: MenuItem,
     pub input: String,
     pub input_state: InputState,
     pub list_state: ListState,
+    pub active_home_panel: HomePanel,
     pub data: Option<Vec<arxiv::Entry>>,
     pub client: arxiv::Client,
 }
@@ -50,7 +65,8 @@ impl Default for TuiState {
         TuiState {
             page: MenuItem::Home,
             input: String::new(),
-            input_state: InputState::NormalMode,
+            input_state: InputState::InsertMode,
+            active_home_panel: HomePanel::SearchBar,
             list_state,
             data: None,
             client: arxiv::Client::default(),
@@ -85,7 +101,8 @@ impl TuiState {
                     .find(|m| m.has_tag_name("summary"))
                     .unwrap()
                     .text()
-                    .unwrap();
+                    .unwrap()
+                    .replace("\n", "");
                 // Feels a little more complicated than could be necessary
                 let pdf_link = n
                     .descendants()
@@ -114,10 +131,28 @@ impl TuiState {
 
     fn get_query_str(&self) -> String {
         let mut q_string = self.input.clone();
-        q_string.replace("(", "%28");
-        q_string.replace(")", "%29");
-        q_string.replace(" ", "+");
-        q_string.replace("\"", "%22");
+        q_string = q_string.replace("(", "%28");
+        q_string = q_string.replace(")", "%29");
+        q_string = q_string.replace(" ", "+");
+        q_string = q_string.replace("\"", "%22");
         q_string
+    }
+
+    pub fn data_len(&self) -> usize {
+        match &self.data {
+            Some(data) => data.len(),
+            None => 0,
+        }
+    }
+    pub fn get_selected_entry(&self) -> Option<&arxiv::Entry> {
+        if let Some(u) = self.list_state.selected() {
+            if let Some(data) = &self.data {
+                Some(&data[u])
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }

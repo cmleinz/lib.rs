@@ -24,26 +24,3 @@ impl Default for Client {
         Self { client }
     }
 }
-
-// fn get_docs() -> Result<(), Box<dyn std::error::Error>> {
-//     let client = reqwest::blocking::Client::builder()
-//         .timeout(Duration::from_secs(5))
-//         .build()
-//         .unwrap();
-//     let resp = client
-//         .get("http://export.arxiv.org/api/query?search_query=all:electron&start=0&max_results=10")
-//         .send()?;
-//     let text = resp.text()?;
-//     println!("{}", text);
-//     let doc = roxmltree::Document::parse(&text).unwrap();
-//     let elem = doc
-//         .descendants()
-//         .filter(|n| n.tag_name().name() == "title")
-//         .map(|n| n.text())
-//         .flatten()
-//         .collect::<Vec<_>>();
-//     for title in elem {
-//         println!("{}", title);
-//     }
-//     Ok(())
-// }

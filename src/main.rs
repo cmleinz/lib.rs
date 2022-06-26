@@ -20,6 +20,7 @@ use tui::{
     text::{Span, Spans},
     widgets::{
         Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs,
+        Wrap,
     },
     Terminal,
 };
@@ -58,12 +59,12 @@ fn render_loop<T: tui::backend::Backend>(
             let size = rect.size();
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .margin(2)
+                .margin(1)
                 .constraints(
                     [
-                        Constraint::Length(1),
                         Constraint::Length(3),
                         Constraint::Min(2),
+                        Constraint::Length(1),
                     ]
                     .as_ref(),
                 )
@@ -72,25 +73,27 @@ fn render_loop<T: tui::backend::Backend>(
                 .direction(Direction::Horizontal)
                 .margin(0)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                .split(chunks[2]);
-            rect.render_widget(render_menu(), chunks[0]);
-            rect.render_widget(render_search_bar(&state), chunks[1]);
+                .split(chunks[1]);
+            rect.render_widget(render_search_bar(&state), chunks[0]);
             rect.render_stateful_widget(render_list(&state), v_split[0], &mut state.list_state);
             rect.render_widget(render_details(&state), v_split[1]);
+            rect.render_widget(render_modeline(&state), chunks[2]);
         })?;
-        if let Ok(res) = user_input_handle(term, &mut state, &rx) {
-            if res {
-                break;
-            }
+        if user_input_handle(term, &mut state, &rx).unwrap_or(false) {
+            break;
         }
     }
     Ok(())
 }
 
 fn render_list<'a>(state: &TuiState) -> List<'a> {
+    let color = match &state.input_state {
+        InputState::NormalMode => Color::LightRed,
+        _ => Color::White,
+    };
     let blk = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().fg(Color::White))
+        .style(Style::default().fg(color))
         .title("Papers")
         .border_type(BorderType::Plain);
     let items = {
@@ -110,44 +113,48 @@ fn render_list<'a>(state: &TuiState) -> List<'a> {
     };
     List::new(items).block(blk).highlight_style(
         Style::default()
-            .bg(Color::Yellow)
+            .bg(Color::White)
             .fg(Color::Black)
             .add_modifier(Modifier::BOLD),
     )
 }
 
 fn render_details<'a>(state: &TuiState) -> Paragraph<'a> {
-    let text = {
-        if let Some(n) = state.list_state.selected() {
-            if let Some(data) = &state.data {
-                data[n].summary.clone()
-            } else {
-                String::new()
-            }
-        } else {
-            String::new()
-        }
+    let mut text = String::from("Summary:\n\n");
+    let summary = match &state.get_selected_entry() {
+        Some(e) => &e.summary,
+        None => "",
+    };
+    text.push_str(summary);
+    let color = match &state.input_state {
+        InputState::NormalMode => Color::LightRed,
+        _ => Color::White,
     };
     Paragraph::new(text)
+        .wrap(Wrap { trim: true })
         .style(Style::default().fg(Color::White))
-        .alignment(Alignment::Center)
+        .alignment(Alignment::Left)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .style(Style::default().fg(Color::White))
-                .title("Description")
+                .style(Style::default().fg(color))
+                .title("Details")
                 .border_type(BorderType::Plain),
         )
 }
 
 fn render_search_bar<'a>(state: &TuiState) -> Paragraph<'a> {
+    let color = match &state.input_state {
+        InputState::InsertMode => Color::LightRed,
+        _ => Color::White,
+    };
     Paragraph::new(state.input.clone())
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Left)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .style(Style::default().fg(Color::White))
+                .style(Style::default().fg(color))
                 .title("Search")
                 .border_type(BorderType::Plain),
         )
@@ -172,6 +179,13 @@ fn render_menu<'a>() -> Tabs<'a> {
     Tabs::new(menu)
 }
 
+fn render_modeline<'a>(state: &TuiState) -> Paragraph<'a> {
+    Paragraph::new(state.input_state.to_string())
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Left)
+        .block(Block::default().borders(Borders::NONE))
+}
+
 fn user_input_handle<T: tui::backend::Backend>(
     term: &mut Terminal<T>,
     state: &mut TuiState,
@@ -179,6 +193,7 @@ fn user_input_handle<T: tui::backend::Backend>(
 ) -> Result<bool, Box<dyn std::error::Error>> {
     match rx.recv()? {
         Event::Input(e) => {
+            // Normal Mode block
             if state.input_state == InputState::NormalMode {
                 match e.code {
                     KeyCode::Char('q') => {
@@ -188,13 +203,7 @@ fn user_input_handle<T: tui::backend::Backend>(
                     }
                     KeyCode::Char('j') | KeyCode::Down => {
                         if let Some(selected) = state.list_state.selected() {
-                            let amount = {
-                                if let Some(data) = &state.data {
-                                    data.len()
-                                } else {
-                                    0
-                                }
-                            };
+                            let amount = &state.data_len();
                             if selected == amount - 1 {
                                 state.list_state.select(Some(0));
                             } else {
@@ -204,7 +213,7 @@ fn user_input_handle<T: tui::backend::Backend>(
                     }
                     KeyCode::Char('k') | KeyCode::Up => {
                         if let Some(selected) = state.list_state.selected() {
-                            let amount = 4;
+                            let amount = &state.data_len();
                             if selected > 0 {
                                 state.list_state.select(Some(selected - 1));
                             } else {
@@ -212,7 +221,7 @@ fn user_input_handle<T: tui::backend::Backend>(
                             }
                         }
                     }
-                    KeyCode::Char('i') | KeyCode::Char('s') => {
+                    KeyCode::Char('i') | KeyCode::Char('s') | KeyCode::Char('/') => {
                         state.input_state = InputState::InsertMode
                     }
                     KeyCode::Enter => {
@@ -224,6 +233,7 @@ fn user_input_handle<T: tui::backend::Backend>(
                     }
                     _ => (),
                 }
+            // Insert Mode block
             } else if state.input_state == InputState::InsertMode {
                 match e.code {
                     KeyCode::Esc => state.input_state = InputState::NormalMode,
@@ -233,6 +243,7 @@ fn user_input_handle<T: tui::backend::Backend>(
                     KeyCode::Char(c) => state.input.push(c),
                     KeyCode::Enter => {
                         state.search(0, 10);
+                        state.input_state = InputState::NormalMode;
                     }
                     _ => {}
                 }
