@@ -1,7 +1,7 @@
 # lib.rs
 <p align="center">
   <img src="https://github.com/cmleinz/lib.rs/blob/main/demo/book.png?raw=true" />
-  
+  <br>
   <img src="https://img.shields.io/badge/VERSION-0.0.1-blue" />
   <img src="https://img.shields.io/badge/LICENSE-MIT-blueviolet" />
 </p>
