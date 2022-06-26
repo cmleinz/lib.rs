@@ -33,6 +33,10 @@ cargo r
 
 To begin a search type either 'i' or 's' and begin typing your search, then simply hit enter to query arxiv.org. The results will then be displayed as a list, as the user navigates the list, the right-side panel will be populated with details of the particular article. To open the highlighted paper, simply press enter.
 
+The program in general uses vim-esque keybindings, with "Normal Mode" being associated with selecting and viewing articles, and insert mode being associated with searching arxiv.
+
+The current mode is indicated in the modeline and in the color of the border of the various elements of the TUI. Red indicates that the region is active, while white indicates it is inactive.
+
 ## Attributions
 [Book icons created by Smashicons - Flaticon](https://www.flaticon.com/free-icons/book) 
 
