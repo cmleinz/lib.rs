@@ -108,7 +108,7 @@ fn render_list<'a>(state: &TuiState) -> List<'a> {
                 })
                 .collect::<Vec<ListItem>>()
         } else {
-            vec![ListItem::new("?")]
+            vec![ListItem::new("Article")]
         }
     };
     List::new(items).block(blk).highlight_style(
@@ -120,12 +120,11 @@ fn render_list<'a>(state: &TuiState) -> List<'a> {
 }
 
 fn render_details<'a>(state: &TuiState) -> Paragraph<'a> {
-    let mut text = String::from("Summary:\n\n");
-    let summary = match &state.get_selected_entry() {
-        Some(e) => &e.summary,
-        None => "",
+    let (authors, summary) = match state.get_selected_entry() {
+        Some(e) => (e.authors.as_str(), e.summary.as_str()),
+        None => ("", ""),
     };
-    text.push_str(summary);
+    let text = format!("Authors:\n{}\n\nSummary:\n{}", authors, summary);
     let color = match &state.input_state {
         InputState::NormalMode => Color::LightRed,
         _ => Color::White,
@@ -158,25 +157,6 @@ fn render_search_bar<'a>(state: &TuiState) -> Paragraph<'a> {
                 .title("Search")
                 .border_type(BorderType::Plain),
         )
-}
-
-fn render_menu<'a>() -> Tabs<'a> {
-    let menu = MenuItem::TITLES
-        .iter()
-        .map(|t| {
-            let (first, rest) = t.split_at(1);
-            Spans::from(vec![
-                Span::styled(
-                    first,
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::UNDERLINED),
-                ),
-                Span::styled(rest, Style::default().fg(Color::White)),
-            ])
-        })
-        .collect();
-    Tabs::new(menu)
 }
 
 fn render_modeline<'a>(state: &TuiState) -> Paragraph<'a> {

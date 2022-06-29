@@ -90,39 +90,15 @@ impl TuiState {
             .descendants()
             .filter(|n| n.has_tag_name("entry"))
             .map(|n| {
-                let title = n
-                    .descendants()
-                    .find(|m| m.has_tag_name("title"))
-                    .unwrap()
-                    .text()
-                    .unwrap();
-                let summary = n
-                    .descendants()
-                    .find(|m| m.has_tag_name("summary"))
-                    .unwrap()
-                    .text()
-                    .unwrap()
-                    .replace("\n", "");
-                // Feels a little more complicated than could be necessary
-                let pdf_link = n
-                    .descendants()
-                    .find(|m| {
-                        let attrs = m
-                            .attributes()
-                            .iter()
-                            .find(|a| a.name() == "title" && a.value() == "pdf");
-                        m.has_tag_name("link") && attrs.is_some()
-                    })
-                    .unwrap()
-                    .attributes()
-                    .iter()
-                    .find(|a| a.name() == "href")
-                    .map(|a| a.value())
-                    .unwrap_or("");
+                let title = arxiv::get_title(&n);
+                let summary = arxiv::get_summary(&n);
+                let pdf_link = arxiv::get_pdf_link(&n);
+                let authors = arxiv::get_authors(&n);
                 arxiv::Entry {
-                    title: title.to_string(),
-                    summary: summary.to_string(),
-                    pdf_link: pdf_link.to_string(),
+                    title,
+                    summary,
+                    pdf_link,
+                    authors,
                 }
             })
             .collect::<Vec<arxiv::Entry>>();
